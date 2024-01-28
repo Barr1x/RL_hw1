@@ -85,7 +85,23 @@ def ucbExploration(c, steps, k, meanRewards, n):
     # TODO implement the UCB exploration algorithm over all steps and return the
     # expected rewards across all steps, remember to pull all arms initially
     expectedRewards = np.zeros(steps)
+
     # BEGIN STUDENT SOLUTION
+    actionsValue = np.zeros(k)
+    actionsNumber = np.zeros(k)
+
+    for i in range(steps):
+        if (np.all(actionsNumber)):
+            action = np.argmax(actionsValue + c * np.sqrt(np.log(i) / actionsNumber))
+        else:
+            action = np.argmin(actionsNumber)
+
+        actualReward = np.random.normal(meanRewards[action], 1)
+
+        actionsNumber[action] += 1
+        actionsValue[action] += (actualReward - actionsValue[action]) / (actionsNumber[action])
+
+        expectedRewards[i] = np.dot(actionsNumber/np.sum(actionsNumber), actionsValue)
     # END STUDENT SOLUTION
     return(expectedRewards)
 
