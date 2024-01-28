@@ -65,7 +65,17 @@ def optimisticInitialization(value, steps, k, meanRewards, n):
     # TODO implement the optimistic initializaiton algorithm over all steps and
     # return the expected rewards across all steps
     expectedRewards = np.zeros(steps)
+
     # BEGIN STUDENT SOLUTION
+    actionsValue = np.full(k, value)
+    actionsNumber = np.zeros(k)
+
+    for i in range(steps):
+        action = np.argmax(actionsValue)
+        actualReward = np.random.normal(meanRewards[action], 1)
+        actionsNumber[action] = actionsNumber[action] + 1
+        actionsValue[action] = actionsValue[action] + (actualReward - actionsValue[action]) / (actionsNumber[action])
+        expectedRewards[i] = np.dot(actionsNumber/np.sum(actionsNumber), actionsValue)
     # END STUDENT SOLUTION
     return(expectedRewards)
 
