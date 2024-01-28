@@ -39,7 +39,23 @@ def epsilonGreedyExploration(epsilon, steps, k, meanRewards, n):
     # TODO implement the epsilong greedy algorithm over all steps and return
     # the expected rewards across all steps
     expectedRewards = np.zeros(steps)
+
     # BEGIN STUDENT SOLUTION
+    actionsValue = np.zeros(k)
+    actionsNumber = np.zeros(k)
+
+    for i in range(steps):
+        if (np.random.rand() < epsilon):
+            action = np.random.randint(0, k)
+        else:
+            action = np.argmax(actionsValue)
+
+        actualReward = np.random.normal(meanRewards[action], 1)
+
+        actionsNumber[action] += 1
+        actionsValue[action] += (actualReward - actionsValue[action]) / (actionsNumber[action])
+
+        expectedRewards[i] = np.dot(actionsNumber/np.sum(actionsNumber), actionsValue)
     # END STUDENT SOLUTION
     return(expectedRewards)
 
