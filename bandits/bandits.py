@@ -43,6 +43,7 @@ def epsilonGreedyExploration(epsilon, steps, k, meanRewards, n):
     # BEGIN STUDENT SOLUTION
     actionsValue = np.zeros(k)
     actionsNumber = np.zeros(k)
+    actionPolicy = np.zeros(k)
 
     for i in range(steps):
         if (np.random.rand() < epsilon):
@@ -55,7 +56,13 @@ def epsilonGreedyExploration(epsilon, steps, k, meanRewards, n):
         actionsNumber[action] += 1
         actionsValue[action] += (actualReward - actionsValue[action]) / (actionsNumber[action])
 
-        expectedRewards[i] = np.dot(actionsNumber/np.sum(actionsNumber), actionsValue)
+        for j in range (k):
+            if (j == action):
+                actionPolicy[j] = (1 - epsilon) + (epsilon)/k
+            else:
+                actionPolicy[j] = (epsilon)/k
+
+        expectedRewards[i] = np.dot(meanRewards, actionPolicy)
     # END STUDENT SOLUTION
     return(expectedRewards)
 
@@ -75,7 +82,8 @@ def optimisticInitialization(value, steps, k, meanRewards, n):
         actualReward = np.random.normal(meanRewards[action], 1)
         actionsNumber[action] = actionsNumber[action] + 1
         actionsValue[action] = actionsValue[action] + (actualReward - actionsValue[action]) / (actionsNumber[action])
-        expectedRewards[i] = np.dot(actionsNumber/np.sum(actionsNumber), actionsValue)
+
+        expectedRewards[i] = actualReward
     # END STUDENT SOLUTION
     return(expectedRewards)
 
@@ -101,7 +109,7 @@ def ucbExploration(c, steps, k, meanRewards, n):
         actionsNumber[action] += 1
         actionsValue[action] += (actualReward - actionsValue[action]) / (actionsNumber[action])
 
-        expectedRewards[i] = np.dot(actionsNumber/np.sum(actionsNumber), actionsValue)
+        expectedRewards[i] = actualReward
     # END STUDENT SOLUTION
     return(expectedRewards)
 
@@ -111,7 +119,23 @@ def boltzmannExploration(temperature, steps, k, meanRewards, n):
     # TODO implement the Boltzmann Exploration algorithm over all steps and
     # return the expected rewards across all steps
     expectedRewards = np.zeros(steps)
+
     # BEGIN STUDENT SOLUTION
+    actionsValue = np.zeros(k)
+    actionsNumber = np.zeros(k)
+
+    for i in range(steps):
+        actionPolicy = np.exp(actionsValue / temperature) / np.sum(np.exp(actionsValue / temperature))
+        action = np.random.choice(k, p=actionPolicy)
+
+        actualReward = np.random.normal(meanRewards[action], 1)
+
+        actionsNumber[action] += 1
+        actionsValue[action] += (actualReward - actionsValue[action]) / (actionsNumber[action])
+
+        expectedRewards[i] = np.dot(meanRewards, actionPolicy)
+    
+
     # END STUDENT SOLUTION
     return(expectedRewards)
 
