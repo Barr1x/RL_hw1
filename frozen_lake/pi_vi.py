@@ -61,6 +61,26 @@ def evaluate_policy_sync(env, value_func, gamma, policy, max_iters=int(1e3), tol
         function took to converge.
     '''
     # BEGIN STUDENT SOLUTION
+    actions_to_names = lake_info.actions_to_names
+    all_states = env.observation_space.n
+    i = 0
+    for i in range(max_iters):
+        delta = 0
+        value_func_updated = np.zeros(env.observation_space.n)
+        for state in range(all_states):
+            v = value_func[state]
+            action = actions_to_names[policy[state]]
+            row_new, col_new = locate_position(env, state, action)
+            reward, end_episode = reward_function_with_termination(env, state, action)
+            if end_episode:
+                value_func_updated[state] = reward
+            else:
+                value_func_updated[state] = reward + gamma * value_func[row_new*env.unwrapped.ncol + col_new]
+            delta = max(delta, abs(v - value_func_updated[state]))
+        value_func = value_func_updated
+        if delta < tol:
+            break
+
     # END STUDENT SOLUTION
     return(value_func, i)
 
@@ -158,6 +178,21 @@ def improve_policy(env, gamma, value_func, policy):
     '''
     policy_changed = False
     # BEGIN STUDENT SOLUTION
+    actions_to_names = lake_info.actions_to_names
+    all_states = env.observation_space.n
+    for state in range(all_states):
+        old_action = policy[state]
+        compare = np.zeros(4)
+        for i in range(4):
+            action = actions_to_names[i]
+            row_new, col_new = locate_position(env, state, action)
+            reward, _ = reward_function_with_termination(env, state, action)
+            compare[i] = reward + gamma * value_func[row_new*env.unwrapped.ncol + col_new]
+        new_action = np.argmax(compare)
+        policy[state] = new_action
+        if old_action != new_action:
+            policy_changed = True
+
     # END STUDENT SOLUTION
     return(policy, policy_changed)
 
@@ -191,6 +226,13 @@ def policy_iteration_sync(env, gamma, max_iters=int(1e3), tol=1e-3):
     value_func = np.zeros(env.observation_space.n)
     pi_steps, pe_steps = 0, 0
     # BEGIN STUDENT SOLUTION
+    for i in range(max_iters):
+        value_func, pe = evaluate_policy_sync(env, value_func, gamma, policy)
+        pe_steps += pe
+        policy, changed = improve_policy(env, gamma, value_func, policy)
+        pi_steps += 1
+        if not changed:
+            break
     # END STUDENT SOLUTION
     return(policy, value_func, pi_steps, pe_steps)
 
@@ -433,6 +475,35 @@ def value_func_heatmap(env, value_func):
 
 
 
+def locate_position(env, state, action):
+    row = state // env.unwrapped.ncol
+    col = state % env.unwrapped.ncol
+
+    if action == "Left" and col > 0:
+        col -= 1
+    elif action == "Right" and col < env.unwrapped.ncol - 1:
+        col += 1
+    elif action == "Up" and row > 0:
+        row -= 1
+    elif action == "Down" and row < env.unwrapped.nrow - 1:
+        row += 1
+
+    return (row, col)
+
+def reward_function_with_termination(env, state, action):
+    
+    row, col = locate_position(env, state, action)
+
+    if map[row][col] == 'F':
+        return (0, False)
+    elif map[row][col] == 'H':
+        return (0, True)
+    elif map[row][col] == 'G':
+        return (1, True)
+    elif map[row][col] == 'S':
+        return (0, False)
+    
+   
 if __name__ == '__main__':
     np.random.seed(10003)
     maps = lake_info.maps
@@ -441,4 +512,15 @@ if __name__ == '__main__':
     for map_name, map in maps.items():
         env = gymnasium.make('FrozenLake-v1', desc=map, map_name=map_name, is_slippery=False)
         # BEGIN STUDENT SOLUTION
+        policy, value_func, pi_steps, pe_steps = policy_iteration_sync(env, gamma)
+
+        print("Policy for map: ", map_name)
+        display_policy_letters(env, policy)
+        value_func_heatmap(env, value_func)
+        
+
+
+
+
+
         # END STUDENT SOLUTION
