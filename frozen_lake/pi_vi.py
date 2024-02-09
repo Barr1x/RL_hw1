@@ -30,6 +30,18 @@ def value_func_to_policy(env, gamma, value_func):
     '''
     policy = np.zeros(env.observation_space.n, dtype='int')
     # BEGIN STUDENT SOLUTION
+    actions_to_names = lake_info.actions_to_names
+    for state in range(env.observation_space.n):
+        compare_action = np.zeros(4)
+        for action_index in range(4):
+            action = actions_to_names[action_index]
+            reward, terminal = reward_function_with_termination(env, state, action)
+            if terminal:
+                compare_action[action_index] = reward
+            else:
+                new_row, new_col = locate_position(env, state, action)
+                compare_action[action_index] = reward + gamma * value_func[new_row*env.unwrapped.ncol + new_col]
+        policy[state] = np.argmax(compare_action)
     # END STUDENT SOLUTION
     return(policy)
 
@@ -115,6 +127,23 @@ def evaluate_policy_async_ordered(env, value_func, gamma, policy, max_iters=int(
         function took to converge.
     '''
     # BEGIN STUDENT SOLUTION
+    actions_to_names = lake_info.actions_to_names
+    all_states = env.observation_space.n
+    i = 0
+    for i in range(max_iters):
+        delta = 0
+        for state in range(all_states):
+            v = value_func[state]
+            action = actions_to_names[policy[state]]
+            row_new, col_new = locate_position(env, state, action)
+            reward, end_episode = reward_function_with_termination(env, state, action)
+            if end_episode:
+                value_func[state] = reward
+            else:
+                value_func[state] = reward + gamma * value_func[row_new*env.unwrapped.ncol + col_new]
+            delta = max(delta, abs(v - value_func[state]))
+        if delta < tol:
+            break
     # END STUDENT SOLUTION
     return(value_func, i)
 
@@ -149,6 +178,23 @@ def evaluate_policy_async_randperm(env, value_func, gamma, policy, max_iters=int
         function took to converge.
     '''
     # BEGIN STUDENT SOLUTION
+    actions_to_names = lake_info.actions_to_names
+    all_states = env.observation_space.n
+    i = 0
+    for i in range(max_iters):
+        delta = 0
+        for state in np.random.permutation(all_states):
+            v = value_func[state]
+            action = actions_to_names[policy[state]]
+            row_new, col_new = locate_position(env, state, action)
+            reward, end_episode = reward_function_with_termination(env, state, action)
+            if end_episode:
+                value_func[state] = reward
+            else:
+                value_func[state] = reward + gamma * value_func[row_new*env.unwrapped.ncol + col_new]
+            delta = max(delta, abs(v - value_func[state]))
+        if delta < tol:
+            break
     # END STUDENT SOLUTION
     return(value_func, i)
 
@@ -185,12 +231,14 @@ def improve_policy(env, gamma, value_func, policy):
         compare = np.zeros(4)
         for i in range(4):
             action = actions_to_names[i]
-            row_new, col_new = locate_position(env, state, action)
-            reward, _ = reward_function_with_termination(env, state, action)
-            compare[i] = reward + gamma * value_func[row_new*env.unwrapped.ncol + col_new]
-        new_action = np.argmax(compare)
-        policy[state] = new_action
-        if old_action != new_action:
+            reward, end_episode = reward_function_with_termination(env, state, action)
+            if end_episode:
+                compare[i] = reward
+            else:
+                row_new, col_new = locate_position(env, state, action)
+                compare[i] = reward + gamma * value_func[row_new*env.unwrapped.ncol + col_new]
+        policy[state] = np.argmax(compare)
+        if old_action != policy[state]:
             policy_changed = True
 
     # END STUDENT SOLUTION
@@ -266,6 +314,13 @@ def policy_iteration_async_ordered(env, gamma, max_iters=int(1e3), tol=1e-3):
     value_func = np.zeros(env.observation_space.n)
     pi_steps, pe_steps = 0, 0
     # BEGIN STUDENT SOLUTION
+    for i in range(max_iters):
+        value_func, pe = evaluate_policy_async_ordered(env, value_func, gamma, policy)
+        pe_steps += pe
+        policy, changed = improve_policy(env, gamma, value_func, policy)
+        pi_steps += 1
+        if not changed:
+            break
     # END STUDENT SOLUTION
     return(policy, value_func, pi_steps, pe_steps)
 
@@ -299,6 +354,13 @@ def policy_iteration_async_randperm(env, gamma, max_iters=int(1e3), tol=1e-3):
     value_func = np.zeros(env.observation_space.n)
     pi_steps, pe_steps = 0, 0
     # BEGIN STUDENT SOLUTION
+    for i in range(max_iters):
+        value_func, pe = evaluate_policy_async_randperm(env, value_func, gamma, policy)
+        pe_steps += pe
+        policy, changed = improve_policy(env, gamma, value_func, policy)
+        pi_steps += 1
+        if not changed:
+            break
     # END STUDENT SOLUTION
     return(policy, value_func, pi_steps, pe_steps)
 
@@ -326,10 +388,31 @@ def value_iteration_sync(env, gamma, max_iters=int(1e3), tol=1e-3):
         converge.
     '''
     value_func = np.zeros(env.observation_space.n)
+    value_func_update = np.zeros(env.observation_space.n)
+    actions_to_names = lake_info.actions_to_names
+    i = 0
     # BEGIN STUDENT SOLUTION
+    for i in range(max_iters):
+        delta = 0
+        compare_action = np.zeros(4)
+        for state in range(env.observation_space.n):
+            v = value_func[state]
+            for action_index in range(4):
+                action = actions_to_names[action_index]
+                reward, terminal = reward_function_with_termination(env, state, action)
+                if terminal:
+                    compare_action[action_index] = reward
+                else:
+                    new_row, new_col = locate_position(env, state, action)
+                    compare_action[action_index] = reward + gamma * value_func[new_row*env.unwrapped.ncol + new_col]
+            value_func_update[state] = np.max(compare_action)
+            delta = max(delta, abs(v - value_func_update[state]))
+        value_func = value_func_update
+        if delta < tol:
+            break
+    
     # END STUDENT SOLUTION
     return(value_func, i)
-
 
 
 def value_iteration_async_ordered(env, gamma, max_iters=int(1e3), tol=1e-3):
@@ -356,6 +439,27 @@ def value_iteration_async_ordered(env, gamma, max_iters=int(1e3), tol=1e-3):
     '''
     value_func = np.zeros(env.observation_space.n)
     # BEGIN STUDENT SOLUTION
+    value_func_update = np.zeros(env.observation_space.n)
+    actions_to_names = lake_info.actions_to_names
+    i = 0
+    for i in range(max_iters):
+        delta = 0
+        for state in range(env.observation_space.n):
+            v = value_func[state]
+            compare_action = np.zeros(4)
+            for action_index in range(4):
+                action = actions_to_names[action_index]
+                reward, terminal = reward_function_with_termination(env, state, action)
+                if terminal:
+                    compare_action[action_index] = reward
+                else:
+                    new_row, new_col = locate_position(env, state, action)
+                    compare_action[action_index] = reward + gamma * value_func[new_row*env.unwrapped.ncol + new_col]
+            value_func_update[state] = np.max(compare_action)
+            delta = max(delta, abs(v - value_func_update[state]))
+        value_func = value_func_update
+        if delta < tol:
+            break
     # END STUDENT SOLUTION
     return(value_func, i)
 
@@ -385,6 +489,27 @@ def value_iteration_async_randperm(env, gamma, max_iters=int(1e3), tol=1e-3):
     '''
     value_func = np.zeros(env.observation_space.n)
     # BEGIN STUDENT SOLUTION
+    value_func_update = np.zeros(env.observation_space.n)
+    actions_to_names = lake_info.actions_to_names
+    i = 0
+    for i in range(max_iters):
+        delta = 0
+        for state in np.random.permutation(env.observation_space.n):
+            v = value_func[state]
+            compare_action = np.zeros(4)
+            for action_index in range(4):
+                action = actions_to_names[action_index]
+                reward, terminal = reward_function_with_termination(env, state, action)
+                if terminal:
+                    compare_action[action_index] = reward
+                else:
+                    new_row, new_col = locate_position(env, state, action)
+                    compare_action[action_index] = reward + gamma * value_func[new_row*env.unwrapped.ncol + new_col]
+            value_func_update[state] = np.max(compare_action)
+            delta = max(delta, abs(v - value_func_update[state]))
+        value_func = value_func_update
+        if delta < tol:
+            break
     # END STUDENT SOLUTION
     return(value_func, i)
 
@@ -412,12 +537,50 @@ def value_iteration_async_custom(env, gamma, max_iters=int(1e3), tol=1e-3):
         Returns the value function, and the number of iterations it took to
         converge.
     '''
+    #sweep through the entire state space ordered by Manhattan distance
     value_func = np.zeros(env.observation_space.n)
     # BEGIN STUDENT SOLUTION
+    value_func_update = np.zeros(env.observation_space.n)
+    actions_to_names = lake_info.actions_to_names
+    sequence = sort_by_manhattan_distance(env)
+    i = 0
+    for i in range(max_iters):
+        delta = 0
+        for state in sequence:
+            v = value_func[state]
+            compare_action = np.zeros(4)
+            for action_index in range(4):
+                action = actions_to_names[action_index]
+                reward, terminal = reward_function_with_termination(env, state, action)
+                if terminal:
+                    compare_action[action_index] = reward
+                else:
+                    new_row, new_col = locate_position(env, state, action)
+                    compare_action[action_index] = reward + gamma * value_func[new_row*env.unwrapped.ncol + new_col]
+            value_func_update[state] = np.max(compare_action)
+            delta = max(delta, abs(v - value_func_update[state]))
+        value_func = value_func_update
+        if delta < tol:
+            break
     # END STUDENT SOLUTION
     return(value_func, i)
 
+def manhattan_distance(point1, point2):
+    return abs(point1[0] - point2[0]) + abs(point1[1] - point2[1])
 
+def sort_by_manhattan_distance(env):
+    goal_location = (0,0)
+    for i in range(env.unwrapped.nrow):
+        for j in range(env.unwrapped.ncol):
+            if map[i][j] == 'G':
+                goal_location = (i,j)
+    state_distance = []
+    for i in range(env.observation_space.n):
+        row = i // env.unwrapped.ncol
+        col = i % env.unwrapped.ncol
+        state_distance.append((i, manhattan_distance((row,col), goal_location)))
+    state_distance.sort(key=lambda x: x[1])
+    return [x[0] for x in state_distance]
 
 # Here we provide some helper functions for your convinience.
 
@@ -512,12 +675,34 @@ if __name__ == '__main__':
     for map_name, map in maps.items():
         env = gymnasium.make('FrozenLake-v1', desc=map, map_name=map_name, is_slippery=False)
         # BEGIN STUDENT SOLUTION
-        policy, value_func, pi_steps, pe_steps = policy_iteration_sync(env, gamma)
+        # average_policy_steps = 0
+        # average_value_steps = 0
+        # for i in range(10):
+        #     policy, value_func, pi_steps, pe_steps = policy_iteration_async_randperm(env, gamma)
+        #     average_policy_steps += pi_steps
+        #     average_value_steps += pe_steps
 
-        print("Policy for map: ", map_name)
-        display_policy_letters(env, policy)
-        value_func_heatmap(env, value_func)
+        # print("Policy for map: ", map_name)
+        # print("Average Policy Iteration Steps: ", average_policy_steps/10)
+        # print("Average Policy Evaluation Steps: ", average_value_steps/10)
         
+        # average_policy_steps = 0
+        # for i in range(10):
+        #     value_func, i = value_iteration_async_randperm(env, gamma)
+        #     average_policy_steps += i
+        # print("Value for map: ", map_name)
+        # print("Average Value Iteration Steps: ", average_policy_steps/10)
+
+        value_func, i = value_iteration_async_custom(env, gamma)
+        print("Value for map: ", map_name)
+        print("Value Iteration Steps: ", i)
+        value_func_heatmap(env, value_func)
+
+        
+       
+
+
+
 
 
 
